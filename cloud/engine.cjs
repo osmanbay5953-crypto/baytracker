@@ -68,6 +68,7 @@ function aggregate(rows){
  Object.assign(g,{kd:ratio(g.kills,g.deaths),kda:ratio(g.kills+g.assists,g.deaths),hs:pct(hs,shots),adr:ratio(damage,g.rounds),acs:ratio(score,g.rounds),dd:ratio(damage-received,g.rounds),kast:pct(g.kastRounds,g.rounds),clutch:pct(g.clutchWins,g.clutchAttempts),performance:ratio(perf,perfRounds),rank:rows.at(-1)?.p.tier||null});
  g._totals={hs,shots,damage,received,score,perf,perfRounds};
  g._weapons=weapons;
+ g.weaponKills=weapons;
  return g;
 }
 function aggregateTeam(matches){

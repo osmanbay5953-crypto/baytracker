@@ -58,6 +58,22 @@
       oscillator.onended=()=>{oscillator.disconnect();volume.disconnect();};
     }catch{}
   }
+  window.BayUI.quizSound=async function(type){
+    if(!enabled||!audio)return;
+    const patterns={move:[[480,.035,0]],question:[[380,.07,0],[570,.08,.07]],correct:[[660,.1,0],[880,.13,.1]],partial:[[490,.1,0],[620,.1,.09]],wrong:[[190,.14,0]],tick:[[720,.035,0]],finish:[[440,.12,0],[660,.12,.12],[880,.2,.24]]};
+    try{
+      if(audio.state!=='running')return;
+      const now=audio.currentTime;
+      for(const [hz,duration,delay]of patterns[type]||[]){
+        const oscillator=audio.createOscillator(),gain=audio.createGain(),t=now+delay;
+        oscillator.type='sine';oscillator.frequency.setValueAtTime(hz,t);
+        gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(type==='tick'?.009:.018,t+.006);
+        gain.gain.exponentialRampToValueAtTime(.0001,t+duration);
+        oscillator.connect(gain).connect(audio.destination);oscillator.start(t);oscillator.stop(t+duration+.01);
+        oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
+      }
+    }catch{}
+  };
   document.addEventListener('DOMContentLoaded',()=>{
     decorate();
     const toggle=document.createElement('button');

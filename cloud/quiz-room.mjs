@@ -1,5 +1,5 @@
 import {DurableObject} from 'cloudflare:workers';
-import {makeQuestions,scoreAnswer,leaderboard} from './quiz-questions.mjs';
+import {makeQuestions,scoreAnswer,leaderboard,normalizeCategories,durationFor,answerQuality} from './quiz-questions.mjs';
 
 const response=(data,status=200,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store',...headers}});
 const cleanName=value=>typeof value==='string'?value.trim().replace(/[\x00-\x1f]/g,'').slice(0,20):'';
@@ -26,16 +26,17 @@ export class QuizRoom extends DurableObject {
       answered:!!room.answers[player.id],connected:this.ctx.getWebSockets().some(ws=>ws.deserializeAttachment()?.id===player.id)
     }));
     return {
-      code:room.code,mode:room.mode,topic:room.topic,count:room.count,
+      code:room.code,mode:room.mode,topic:room.topic,categories:room.categories,count:room.count,duration:room.duration||15000,
       phase:room.phase,index:room.index,startsAt:room.startsAt,deadline:room.deadline,
       serverTime:Date.now(),host:room.host,me:playerId,players,
-      answer:room.answers[playerId]?{choice:room.answers[playerId].choice,...(reveal?{points:room.answers[playerId].points,elapsed:room.answers[playerId].elapsed}:{})}:null,
+      answer:room.answers[playerId]?{choice:room.answers[playerId].choice,order:room.answers[playerId].order,choices:room.answers[playerId].choices,...(reveal?{points:room.answers[playerId].points,elapsed:room.answers[playerId].elapsed,quality:room.answers[playerId].quality}:{})}:null,
       question:current&&room.phase!=='lobby'?{
-        prompt:current.prompt,options:current.options,category:current.category,
+        prompt:current.prompt,options:current.options,category:current.category,categoryId:current.categoryId,
+        kind:current.kind||'choice',difficulty:current.difficulty||'hard',unit:current.unit,
         image:current.image?'/api/quiz/rooms/'+room.code+'/media/'+room.index:null,
         audio:current.audio?'/api/quiz/rooms/'+room.code+'/media/'+room.index:null,
         agents:current.agents||null,effect:current.effect,position:current.position,
-        ...(reveal?{correct:current.answer,explanation:current.explanation}: {})
+        ...(reveal?{correct:current.answer,explanation:current.explanation,values:current.rankValues,source:current.source}: {})
       }:null
     };
   }
@@ -63,12 +64,16 @@ export class QuizRoom extends DurableObject {
       if(this.room)return response({error:'Oda kodu dolu.'},409);
       const body=await this.body(request),name=cleanName(body.name);
       if(!name)return response({error:'Oyuncu adını yaz.'},400);
+      const categories=normalizeCategories(body.categories,body.topic);
+      if(!categories.length)return response({error:'En az bir kategori seç.'},400);
+      if(!Number.isInteger(body.count)||body.count<5||body.count>40)return response({error:'5–40 arasında soru sayısı seç.'},400);
       const code=url.searchParams.get('code');
       const player={id:crypto.randomUUID(),token:crypto.randomUUID(),name,score:0,correct:0,totalTime:0,joinedAt:Date.now()};
       this.room={code,mode:body.mode==='solo'?'solo':'coop',topic:['team','valorant','mixed'].includes(body.topic)?body.topic:'mixed',
-        count:[10,15,20].includes(body.count)?body.count:10,phase:'lobby',host:player.id,
+        categories,count:body.count,phase:'lobby',host:player.id,
         players:[player],questions:[],index:-1,answers:{},startsAt:0,deadline:0,expiresAt:Date.now()+7200000};
-      if(this.room.mode==='solo')await this.start();
+      try{if(this.room.mode==='solo')await this.start();else await this.prepare();}
+      catch(error){this.room=null;return response({error:error.message},400);}
       await this.save();
       return this.session(request,player);
     }
@@ -110,18 +115,20 @@ export class QuizRoom extends DurableObject {
       if(player.id!==this.room.host)return response({error:'Turu oda sahibi başlatır.'},403);
       if(!['lobby','finished'].includes(this.room.phase))return response({error:'Tur zaten başladı.'},409);
       if(this.room.mode==='coop'&&this.room.players.length<2)return response({error:'Başlamak için en az 2 oyuncu gerekiyor.'},409);
-      await this.start();await this.save();this.broadcast();return response(this.state(player.id));
+      try{await this.start();}catch(error){return response({error:error.message},400);}
+      await this.save();this.broadcast();return response(this.state(player.id));
     }
     if(action==='answer'&&request.method==='POST'){
       const body=await this.body(request),now=Date.now();
       if(this.room.phase!=='question'||body.index!==this.room.index||now<this.room.startsAt||now>=this.room.deadline)
         return response({error:'Bu sorunun cevap süresi kapalı.'},409);
       if(this.room.answers[player.id])return response({error:'Bu soruya zaten cevap verdin.'},409);
-      if(!Number.isInteger(body.choice)||body.choice<0||body.choice>3)return response({error:'Bir şık seç.'},400);
-      const elapsed=now-this.room.startsAt,correct=body.choice===this.room.questions[this.room.index].answer;
-      const points=scoreAnswer(correct,elapsed);
+      const question=this.room.questions[this.room.index];
+      let graded;try{graded=answerQuality(question,body);}catch(error){return response({error:error.message},400);}
+      const elapsed=now-this.room.startsAt;
+      const points=Math.round(scoreAnswer(true,elapsed,this.room.duration||15000)*graded.quality);
       // Correctness and points are disclosed only when the question is over.
-      this.room.answers[player.id]={choice:body.choice,elapsed,points};
+      this.room.answers[player.id]={...graded,elapsed,points};
       if(this.room.players.every(p=>this.room.answers[p.id]))this.reveal();
       await this.save();this.broadcast();return response(this.state(player.id));
     }
@@ -141,12 +148,20 @@ export class QuizRoom extends DurableObject {
     return response(this.state(player.id),200,{'Set-Cookie':'quiz_session='+player.token+
       '; HttpOnly; SameSite=Strict; Max-Age=7200; Path=/api/quiz/rooms/'+this.room.code+secure});
   }
-  async start(){
+  async prepare(){
     const record=await this.env.DB.prepare("SELECT payload FROM snapshots WHERE name='profiles'").first();
     const data=record?JSON.parse(record.payload):null;
-    this.room.questions=makeQuestions(data,this.room.topic,this.room.count);
+    const recent=[...(this.room.questions||[]).map(q=>q.id),...(this.room.recent||[])];
+    const questions=makeQuestions(data,this.room.topic,this.room.count,this.room.categories,recent);
+    return questions;
+  }
+  async start(){
+    const questions=await this.prepare();
+    this.room.recent=[...(this.room.questions||[]).map(q=>q.id),...(this.room.recent||[])].slice(0,100);
+    this.room.questions=questions;
     this.room.index=0;this.room.phase='question';this.room.answers={};
-    this.room.startsAt=Date.now()+3000;this.room.deadline=this.room.startsAt+15000;
+    this.room.duration=durationFor(questions[0]);
+    this.room.startsAt=Date.now()+3000;this.room.deadline=this.room.startsAt+this.room.duration;
     for(const player of this.room.players){player.score=0;player.correct=0;player.totalTime=0;}
   }
   reveal(){
@@ -154,7 +169,7 @@ export class QuizRoom extends DurableObject {
     const correct=this.room.questions[this.room.index].answer;
     for(const player of this.room.players){
       const answer=this.room.answers[player.id];
-      if(answer?.choice===correct){player.score+=answer.points;player.correct++;player.totalTime+=answer.elapsed;}
+      if(answer){player.score+=answer.points;if((answer.quality??+(answer.choice===correct))===1)player.correct++;if(answer.points)player.totalTime+=answer.elapsed;}
     }
     this.room.phase='reveal';this.room.deadline=Date.now()+5000;
   }
@@ -171,7 +186,8 @@ export class QuizRoom extends DurableObject {
         if(this.room.index+1>=this.room.count){this.room.phase='finished';this.room.expiresAt=Date.now()+1800000;}
         else{
           this.room.index++;this.room.phase='question';this.room.answers={};
-          this.room.startsAt=Date.now()+1500;this.room.deadline=this.room.startsAt+15000;
+          this.room.duration=durationFor(this.room.questions[this.room.index]);
+          this.room.startsAt=Date.now()+1500;this.room.deadline=this.room.startsAt+this.room.duration;
         }
       }
       await this.save();this.broadcast();

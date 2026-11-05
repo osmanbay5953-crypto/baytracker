@@ -68,6 +68,7 @@ function mergePlayer(rows) {
   for(const row of rows)for(const [name,kills] of Object.entries(row._weapons))
     weapons[name]=(weapons[name]||0)+kills;
   result.weapons=Object.entries(weapons).map(([name,kills])=>({name,kills})).sort((a,b)=>b.kills-a.kills).slice(0,3);
+  result.weaponKills=weapons;
   result.history=rows.flatMap(row=>row.history);
   result.rank=rows.at(-1)?.rank||null;
   return result;

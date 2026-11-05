@@ -1,0 +1,56 @@
+{
+  "categories": [
+    {
+      "id": "records",
+      "label": "Maç hafızası",
+      "limit": 510
+    },
+    {
+      "id": "favorites",
+      "label": "Takım ve ajanlar",
+      "limit": 10
+    },
+    {
+      "id": "comps",
+      "label": "Comp hafızası",
+      "limit": 96
+    },
+    {
+      "id": "ranking",
+      "label": "Beşliyi sırala",
+      "limit": 55
+    },
+    {
+      "id": "map",
+      "label": "Harita dedektifi",
+      "limit": 13
+    },
+    {
+      "id": "ability",
+      "label": "Yetenek isimleri",
+      "limit": 120
+    },
+    {
+      "id": "agent",
+      "label": "Ajan ustalığı",
+      "limit": 12
+    },
+    {
+      "id": "skin",
+      "label": "Skin arşivi",
+      "limit": 150
+    },
+    {
+      "id": "lore",
+      "label": "Lore ve evren",
+      "limit": 20
+    },
+    {
+      "id": "arsenal",
+      "label": "Silah laboratuvarı",
+      "limit": 14
+    }
+  ],
+  "minCount": 5,
+  "maxCount": 40
+}
