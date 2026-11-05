@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c1015">
+  <title>İstatistikler — BayTracker</title>
+  <link rel="icon" href="assets/baytracker-logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="profiles.css">
+  <link rel="stylesheet" href="statistics.css">
+  <link rel="stylesheet" href="ui.css">
+  <script src="ui.js" defer></script>
+</head>
+<body class="profiles-page">
+  <div class="ambient" aria-hidden="true"></div>
+  <main class="profile-shell">
+    <nav class="profile-nav" aria-label="Sayfa gezinmesi">
+      <a class="return-link" id="return-link" href="./"><span aria-hidden="true">←</span><span id="return-label">Ana menü</span></a>
+      <a class="bay-brand" href="./" aria-label="BayTracker ana menü"><img src="assets/baytracker-logo.svg" alt="" width="31" height="31"><span>Bay<span class="bay-tracker">Tracker</span></span></a>
+    </nav>
+    <div id="profile-app" aria-busy="true"><p class="loading-note" role="status">İstatistikler yükleniyor…</p></div>
+    <noscript>Profilleri görüntülemek için JavaScript’i etkinleştirin.</noscript>
+  </main>
+  <script src="profiles.js"></script><script src="statistics-visuals.js"></script><script src="statistics.js"></script>
+  <script src="sync-status.js"></script>
+</body>
+</html>

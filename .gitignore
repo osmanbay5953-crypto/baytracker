@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars*
+.env*
+work/matches/
+work/*.sql
+work/*-seed.json
+*.log
+work/bin/

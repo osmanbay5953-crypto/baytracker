@@ -1,0 +1,19 @@
+{
+  "name": "five-stack-preview",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "node server.cjs",
+    "start": "node server.cjs",
+    "data:build": "node work/build-profiles.cjs",
+    "data:sync": "node work/sync-matches.cjs",
+    "test:stats": "node work/test-statistics.cjs",
+    "build": "node cloud/build.cjs",
+    "dev:cloud": "npm run build && wrangler dev --port 4174 --test-scheduled",
+    "db:seed": "node cloud/seed.cjs",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.158.0"
+  }
+}

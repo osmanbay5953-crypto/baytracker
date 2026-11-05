@@ -1,0 +1,26 @@
+name: Update match statistics
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: match-statistics
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  synchronize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch new matches and update database
+        run: node cloud/sync.cjs
+        env:
+          HENRIK_API_KEY: ${{ secrets.HENRIK_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_ID: ${{ vars.CLOUDFLARE_D1_ID }}

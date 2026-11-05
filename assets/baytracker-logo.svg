@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <title>BayTracker — Takip ve yükseliş</title>
+  <path d="M25 5a19 19 0 1 0 18 18" stroke="#ff4b52" stroke-width="4" stroke-linecap="round"/>
+  <path d="M24 14a10 10 0 1 0 10 10" stroke="#ff4b52" stroke-opacity=".45" stroke-width="3" stroke-linecap="round"/>
+  <path d="m24 24 17-17M31 7h10v10" stroke="#ff4b52" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="24" cy="24" r="3" fill="#f0f1ec"/>
+</svg>

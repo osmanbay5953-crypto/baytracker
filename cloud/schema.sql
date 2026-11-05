@@ -1,0 +1,15 @@
+CREATE TABLE IF NOT EXISTS matches (
+  id TEXT PRIMARY KEY,
+  started_at TEXT NOT NULL,
+  act TEXT NOT NULL,
+  summary TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS snapshots (
+  name TEXT PRIMARY KEY,
+  payload TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sync_state (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c1015">
+  <meta name="description" content="Beş kişilik VALORANT takımının kişisel analiz merkezi.">
+  <title>BayTracker — Takım Merkezi</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="ui.css">
+  <script src="ui.js" defer></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <div class="shell">
+    <main>
+      <div class="bay-brand" aria-label="BayTracker">
+        <img src="assets/baytracker-logo.svg" alt="" width="46" height="48">
+        <span>Bay<span class="bay-tracker">Tracker</span></span>
+      </div>
+      <section class="menu" aria-label="Ana menü">
+        <a class="card profiles" href="profiles.html">
+          <img src="assets/fade.png" alt="" class="card-art">
+          <span class="card-shade"></span>
+          <span class="card-bottom"><span class="card-title">PROFİLLER</span></span>
+        </a>
+        <a class="card maps" href="maps.html">
+          <img src="assets/ascent.png" alt="" class="card-art">
+          <span class="card-shade"></span>
+          <span class="card-bottom"><span class="card-title">MAP COMPLARI</span></span>
+        </a>
+        <a class="card statistics" href="statistics.html">
+          <img src="assets/killjoy.png" alt="" class="card-art">
+          <span class="card-shade"></span>
+          <span class="card-bottom"><span class="card-title">İSTATİSTİKLER</span></span>
+        </a>
+        <button class="card mystery" data-section="mystery" aria-haspopup="dialog" aria-label="Gizemli bölüm, yakında">
+          <img src="assets/cypher.png" alt="" class="card-art">
+          <span class="card-shade"></span>
+          <span class="secret" aria-hidden="true">?</span>
+          <span class="card-bottom"><span class="card-title">SONRAKİ HAMLE</span></span>
+        </button>
+      </section>
+    </main>
+  </div>
+  <dialog id="section-dialog" aria-labelledby="dialog-title"><button class="close" aria-label="Kapat">×</button><p class="eyebrow">FIVE STACK / ÖNİZLEME</p><h2 id="dialog-title"></h2><p id="dialog-description"></p><div id="dialog-content"></div><button class="back">ANA MENÜYE DÖN <span>↗</span></button></dialog>
+  <script src="app.js"></script>
+  <script src="sync-status.js"></script>
+</body>
+</html>

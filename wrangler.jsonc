@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "baytracker",
+  "main": "cloud/worker.mjs",
+  "compatibility_date": "2026-11-05",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/assets/profiles-data.json",
+      "/assets/map-compositions.json",
+      "/api/*"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "baytracker",
+      "database_id": "79bd337a-b50e-450b-a1db-ac039310f60e"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "account_id": "024c1cba03c8f2bbc1639d8f0aa61963"
+}
