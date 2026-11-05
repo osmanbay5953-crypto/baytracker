@@ -341,9 +341,16 @@ function tick(){
   for(const button of app.querySelectorAll('[data-choice],.quiz-submit'))button.disabled=!active||!!state.answer||pending;
   for(const button of app.querySelectorAll('[data-order-control]'))button.disabled=!active||!!state.answer||pending||button.dataset.edge==='true';
   const bet=app.querySelector('.quiz-bet');if(bet)bet.disabled=!!state.answer||pending;
-  const remaining=Math.ceil((state.deadline-now)/1000),tickKey=state.code+':'+state.index+':'+remaining;
+  const millisecondsLeft=state.deadline-now,remaining=Math.ceil(millisecondsLeft/1000);
   app.querySelector('.quiz-question')?.classList.toggle('time-critical',active&&!state.answer&&remaining<=5);
-  if(active&&!state.answer&&remaining<=3&&lastTick!==tickKey){lastTick=tickKey;cue('tick');}
+  if(active&&!state.answer&&!pending&&remaining<=8){
+    const interval=remaining<=2?250:remaining<=4?500:1000;
+    const tickKey=[state.code,state.index,interval,Math.ceil(millisecondsLeft/interval)].join(':');
+    if(lastTick!==tickKey){
+      lastTick=tickKey;
+      cue(interval===250?'tickUrgent':interval===500?'tickFast':'tick');
+    }
+  }
 }
 setInterval(tick,100);
 app.addEventListener('pointermove',event=>{

@@ -38,7 +38,10 @@
         else if(type==='correct'){bell(659,0,.04);bell(988,.085,.031);bell(1319,.17,.022);voice(164,164,.22,.025);}
         else if(type==='partial'){bell(587,0,.031);bell(784,.095,.025);}
         else if(type==='wrong'){voice(220,110,.22,.035,0,'triangle');air(500,.12,.02);voice(110,85,.18,.025,.04);}
-        else if(type==='tick'){voice(920,830,.045,.018);air(2400,.018,.012);}
+        else if(type==='tick'||type==='tickFast'||type==='tickUrgent'){
+          const level=type==='tickUrgent'?.026:type==='tickFast'?.021:.016;
+          voice(1040,610,.038,level,0,'triangle');air(2100,.022,level*.7);
+        }
         else if(type==='finish'){[523,659,784,1047].forEach((hz,i)=>bell(hz,i*.11,.028));voice(131,131,.65,.026);air(2100,.2,.02,.2);}
       }
     };

@@ -131,7 +131,7 @@ export class QuizRoom extends DurableObject {
       const points=bet?(graded.quality===1?Math.round(base*1.5):-base):Math.round(base*graded.quality);
       // Correctness and points are disclosed only when the question is over.
       this.room.answers[player.id]={...graded,elapsed,points,bet};
-      if(question.categoryId!=='lineup'&&this.room.players.every(p=>this.room.answers[p.id]))this.reveal();
+      if(this.room.players.every(p=>this.room.answers[p.id]))this.reveal();
       await this.save();this.broadcast();return response(this.state(player.id));
     }
     if(action==='leave'&&request.method==='POST'){
