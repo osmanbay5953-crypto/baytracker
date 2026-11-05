@@ -13,6 +13,13 @@ let renderedQuestion='',draftKey='',rankDraft=[],multiDraft=new Set(),lastCue=''
 const quizSettings=await fetch('assets/quiz-settings.json').then(r=>r.json());
 const categoryLabel=id=>quizSettings.categories.find(c=>c.id===id)?.label||'VALORANT';
 const cue=name=>window.BayUI?.quizSound?.(name);
+const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+function burst(panel){
+  if(!panel||reducedMotion())return;
+  const particles=node('div','quiz-sparks');particles.setAttribute('aria-hidden','true');
+  for(let i=0;i<12;i++){const spark=node('i');spark.style.setProperty('--angle',i*30+'deg');spark.style.setProperty('--distance',45+(i%3)*17+'px');spark.style.setProperty('--delay',(i%4)*22+'ms');particles.append(spark);}
+  panel.append(particles);setTimeout(()=>particles.remove(),1000);
+}
 let currentCode=params.get('room')?.toUpperCase()||'';
 let rememberedName='';
 try{rememberedName=localStorage.getItem('baytracker.quiz.name')||'';}catch{}
@@ -154,6 +161,9 @@ function lobby(){
 }
 async function answer(payload){
   if(pending||state.answer)return;
+  cue('lock');
+  const selected=app.querySelector('[data-choice="'+payload.choice+'"]');
+  selected?.classList.add('answer-lock');
   pending=true;tick();errorBox.textContent='';
   try{setState(await api('/'+state.code+'/answer',{index:state.index,...payload}));}
   catch(error){report(error);}
@@ -194,7 +204,7 @@ function question(){
       list.replaceChildren();
       const order=state.answer?.order||rankDraft;
       order.forEach((item,position)=>{
-        const row=node('li','ordering-row');row.draggable=state.phase==='question'&&!state.answer;row.tabIndex=0;
+        const row=node('li','ordering-row');row.draggable=state.phase==='question'&&!state.answer;row.tabIndex=0;row.dataset.item=item;
         row.addEventListener('keydown',event=>{if(['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();move(position,position+(event.key==='ArrowUp'?-1:1));}});
         row.append(node('span','ordering-position',String(position+1)),node('span','ordering-grip','⠿'),node('strong',null,q.options[item]));
         if(state.phase==='reveal'){
@@ -212,7 +222,13 @@ function question(){
         list.append(row);
       });
     };
-    const move=(from,to)=>{if(state.answer||state.phase!=='question'||to<0||to>=rankDraft.length||from<0||from>=rankDraft.length)return;const [item]=rankDraft.splice(from,1);rankDraft.splice(to,0,item);cue('move');paint();tick();list.children[to]?.focus();};
+    const move=(from,to)=>{
+      if(state.answer||state.phase!=='question'||to===from||to<0||to>=rankDraft.length||from<0||from>=rankDraft.length)return;
+      const before=new Map([...list.children].map(row=>[row.dataset.item,row.getBoundingClientRect().top]));
+      const [item]=rankDraft.splice(from,1);rankDraft.splice(to,0,item);cue('move');paint();tick();
+      if(!reducedMotion())for(const row of list.children){const dy=before.get(row.dataset.item)-row.getBoundingClientRect().top;row.animate([{transform:'translateY('+dy+'px)'},{transform:'translateY(0)'}],{duration:280,easing:'cubic-bezier(.2,.8,.2,1)'});}
+      list.children[to]?.classList.add('just-moved');list.children[to]?.focus({preventScroll:true});
+    };
     paint();panel.append(list);
     if(state.phase!=='reveal'){const submit=button('Sıralamayı gönder',()=>answer({order:rankDraft}),'quiz-button quiz-submit');panel.append(submit);}
     else{const solution=node('div','rank-solution');solution.append(node('h3',null,'Doğru sıralama'));for(const [position,i]of q.correct.entries())solution.append(node('p',null,(position+1)+'. '+q.options[i]+' · '+number(q.values[i])+' '+(q.unit||'')));panel.append(solution);}
@@ -222,7 +238,7 @@ function question(){
     q.options.forEach((option,index)=>{
       const b=button('',()=>{
         if(kind==='choice')answer({choice:index});
-        else{multiDraft.has(index)?multiDraft.delete(index):multiDraft.add(index);b.classList.toggle('selected',multiDraft.has(index));b.setAttribute('aria-pressed',String(multiDraft.has(index)));cue('move');}
+        else{multiDraft.has(index)?multiDraft.delete(index):multiDraft.add(index);b.classList.toggle('selected',multiDraft.has(index));b.setAttribute('aria-pressed',String(multiDraft.has(index)));cue('select');}
       },'quiz-choice');b.dataset.choice=index;
       b.append(node('span','choice-letter',kind==='multiple'?'□':String.fromCharCode(65+index)),node('span',null,option));
       const selected=kind==='multiple'?(state.answer?.choices||[...multiDraft]).includes(index):state.answer?.choice===index;
@@ -240,6 +256,8 @@ function question(){
   const feedback=node('div','quiz-feedback');feedback.setAttribute('aria-live','polite');
   if(state.phase==='reveal'){
     const quality=state.answer?.quality??+(state.answer?.choice===q.correct),correct=quality===1;
+    panel.dataset.outcome=correct?'correct':state.answer?.points?'partial':'wrong';
+    const badge=node('span','feedback-badge',correct?'✓':state.answer?.points?'↗':'−');badge.setAttribute('aria-hidden','true');feedback.append(badge);
     feedback.append(node('strong',correct?'positive':'',correct?'Tam doğru! +'+number(state.answer.points)+' puan':state.answer?.points?'%'+Math.round(quality*100)+' uyum · +'+number(state.answer.points)+' puan':state.answer?'Bu kez olmadı.':'Süre doldu.'));
     feedback.append(node('p',null,q.explanation));
     if(q.source){const source=node('a','quiz-source','Kaynak');source.href=q.source;source.target='_blank';source.rel='noopener noreferrer';feedback.append(source);}
@@ -281,6 +299,8 @@ function render(){
   const layout=node('div','quiz-layout');
   layout.append(state.phase==='lobby'?lobby():state.phase==='finished'?results():question(),rankings());
   app.replaceChildren(toolbar,layout);tick();
+  if(state.phase==='reveal'&&state.answer?.quality===1)burst(layout.querySelector('.quiz-question'));
+  if(state.phase==='finished')burst(layout.querySelector('.quiz-results'));
   if(previous!=null)app.querySelector('[data-choice="'+previous+'"]')?.focus();
 }
 function tick(){
@@ -295,9 +315,15 @@ function tick(){
   for(const button of app.querySelectorAll('[data-choice],.quiz-submit'))button.disabled=!active||!!state.answer||pending;
   for(const button of app.querySelectorAll('[data-order-control]'))button.disabled=!active||!!state.answer||pending||button.dataset.edge==='true';
   const remaining=Math.ceil((state.deadline-now)/1000),tickKey=state.code+':'+state.index+':'+remaining;
+  app.querySelector('.quiz-question')?.classList.toggle('time-critical',active&&!state.answer&&remaining<=5);
   if(active&&!state.answer&&remaining<=3&&lastTick!==tickKey){lastTick=tickKey;cue('tick');}
 }
 setInterval(tick,100);
+app.addEventListener('pointermove',event=>{
+  if(event.pointerType==='touch'||reducedMotion())return;
+  const card=event.target.closest('.quiz-choice,.mode-card');if(!card)return;
+  const box=card.getBoundingClientRect();card.style.setProperty('--pointer-x',event.clientX-box.left+'px');card.style.setProperty('--pointer-y',event.clientY-box.top+'px');
+});
 document.addEventListener('visibilitychange',async()=>{
   if(document.hidden||!state)return;
   try{setState(await api('/'+currentCode+'/state'));if(!socket||socket.readyState>1)connect();}catch(error){report(error);}
