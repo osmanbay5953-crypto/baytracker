@@ -8,3 +8,4 @@ work/*.sql
 work/*-seed.json
 *.log
 work/bin/
+work/media-tools/

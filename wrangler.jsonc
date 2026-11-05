@@ -22,5 +22,21 @@
   "observability": {
     "enabled": true
   },
-  "account_id": "024c1cba03c8f2bbc1639d8f0aa61963"
+  "account_id": "024c1cba03c8f2bbc1639d8f0aa61963",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "QUIZ_ROOMS",
+        "class_name": "QuizRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "quiz-v1",
+      "new_sqlite_classes": [
+        "QuizRoom"
+      ]
+    }
+  ]
 }

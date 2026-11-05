@@ -1,7 +1,19 @@
+export {QuizRoom} from './quiz-room.mjs';
 const json=(value,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store'}});
 export default {
   async fetch(request,env) {
     const url=new URL(request.url);
+    if(url.pathname.startsWith('/api/quiz/rooms')){
+      let code=url.pathname.match(/^\/api\/quiz\/rooms\/([A-Z2-9]{6})(?:\/|$)/)?.[1];
+      if(url.pathname==='/api/quiz/rooms'&&request.method==='POST'){
+        const random=new Uint8Array(6);crypto.getRandomValues(random);
+        const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        code=[...random].map(value=>alphabet[value%alphabet.length]).join('');
+        url.searchParams.set('code',code);
+      }
+      if(!code)return json({error:'Geçersiz oda kodu.'},400);
+      return env.QUIZ_ROOMS.get(env.QUIZ_ROOMS.idFromName(code)).fetch(new Request(url,request));
+    }
     const endpoints={'/assets/profiles-data.json':'profiles','/assets/map-compositions.json':'compositions'};
     if(endpoints[url.pathname]) {
       const row=await env.DB.prepare('SELECT payload FROM snapshots WHERE name=?').bind(endpoints[url.pathname]).first();

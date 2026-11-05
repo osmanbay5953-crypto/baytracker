@@ -27,7 +27,7 @@
   function decorate(root=document) {
     for(const [selector,type] of Object.entries({
       '.profiles .card-title':'team','.maps .card-title':'map','.statistics .card-title':'chart',
-      '.mystery .card-title':'lock','.map-heading h1':'map','.profiles-heading h1':'team',
+      '.mystery .card-title':'trophy','.map-heading h1':'map','.profiles-heading h1':'team',
       '.profile-toolbar h2':'chart','.favorite-agent h3':'team','.best-map h3':'map',
       '.performance h3':'chart','.weapons h3':'cross','#comp-list summary b':'trophy'
     }))root.querySelectorAll(selector).forEach(node=>prefix(node,type));
