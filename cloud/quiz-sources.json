@@ -1,0 +1,7 @@
+{
+  "updated": "2026-11-05",
+  "maps": "https://playvalorant.com/en-us/maps/",
+  "agents": "https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=tr-TR",
+  "weapons": "https://valorant-api.com/v1/weapons?language=tr-TR",
+  "note": "Turkish game labels and current descriptions checked when building. Map images are permanent small crops of ground-level gallery screenshots, not aerial splashes."
+}

@@ -9,3 +9,5 @@ work/*-seed.json
 *.log
 work/bin/
 work/media-tools/
+work/quiz-source-*
+work/quiz-map-crops.json

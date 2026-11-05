@@ -65,7 +65,7 @@ export function makeQuestions(data,topic,count) {
   const families=new Map();
   for(const question of candidates){
     const prefix=question.id.split('-')[0];
-    const family=['portrait','map','sound','favorite','score','missing','vct'].includes(prefix)?prefix:'ability';
+    const family=['agent','skin','map','sound','favorite','score','missing','vct'].includes(prefix)?prefix:'ability';
     if(!families.has(family))families.set(family,[]);
     families.get(family).push(question);
   }
