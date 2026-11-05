@@ -32,7 +32,7 @@ export class QuizRoom extends DurableObject {
       answer:room.answers[playerId]?{point:room.answers[playerId].point,bet:room.answers[playerId].bet,choice:room.answers[playerId].choice,order:room.answers[playerId].order,choices:room.answers[playerId].choices,...(reveal?{points:room.answers[playerId].points,elapsed:room.answers[playerId].elapsed,quality:room.answers[playerId].quality}:{})}:null,
       question:current&&room.phase!=='lobby'?{
         prompt:current.prompt,options:current.options,category:current.category,categoryId:current.categoryId,
-        kind:current.kind||'choice',difficulty:current.difficulty||'hard',unit:current.unit,radar:current.radar,killSlots:current.killSlots,
+        kind:current.kind||'choice',difficulty:current.difficulty||'hard',unit:current.unit,radar:current.radar,killSlots:current.killSlots,kdaSlots:current.kdaSlots,matchCard:current.matchCard,
         image:current.image?'/api/quiz/rooms/'+room.code+'/media/'+room.index:null,
         audio:current.audio?'/api/quiz/rooms/'+room.code+'/media/'+room.index:null,
         agents:current.agents||null,effect:current.effect,position:current.position,

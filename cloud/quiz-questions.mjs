@@ -107,9 +107,15 @@ export function matchLineups(data){
     const rows=shuffle(players.map((p,i)=>({name:p.name,match:histories[i].get(date)})));
     if(rows.some(r=>!r.match||r.match.map!==match.map||r.match.score!==match.score))return [];
     const rankValues=rows.map(r=>r.match.kills);
-    if(new Set(rankValues).size<2)return [];
-    const answer=rankValues.map((_,i)=>i).sort((a,b)=>rankValues[b]-rankValues[a]);
-    return [{id:'lineup-'+date,kind:'ranking',category:'team',categoryId:'lineup',difficulty:'expert',prompt:dateLabel(date)+' · '+match.map+' · '+match.score,options:rows.map(r=>r.name),rankValues,answer,killSlots:answer.map(i=>rankValues[i]),unit:'kill',explanation:'Maçın kill tablosu. Eşit killer kendi aralarında değişebilir.'}];
+    const kdas=rows.map(({match:m})=>[m.kills,m.deaths,m.assists]);
+    const compare=(a,b)=>kdas[b][0]-kdas[a][0]||kdas[a][1]-kdas[b][1]||kdas[b][2]-kdas[a][2];
+    const answer=rows.map((_,i)=>i).sort(compare);
+    const rankStrength=rows.map((_,i)=>rows.filter((__,j)=>compare(i,j)<0).length);
+    if(new Set(rankStrength).size<2)return [];
+    return [{id:'lineup-'+date,kind:'ranking',category:'team',categoryId:'lineup',difficulty:'expert',
+      prompt:match.map+' · '+match.score,matchCard:{date:dateLabel(date),map:match.map,score:match.score},
+      options:rows.map(r=>r.name),rankValues,rankStrength,answer,kdaSlots:answer.map(i=>kdas[i]),unit:'kill',
+      explanation:'Kill eşitse daha az ölüm, ardından daha fazla asist üst sırada. Aynı K/D/A değerleri eşit sayılır.'}];
   });
 }
 export function makeQuestions(data,topic,count,selected,recent=[]){
@@ -163,8 +169,9 @@ export function answerQuality(q,answer){
     let pairs=0,right=0;
     for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
       const a=values[i],b=values[j];
-      if(q.rankValues[a]===q.rankValues[b])continue;
-      pairs++;right+=+(q.rankValues[a]>q.rankValues[b]);
+      const weights=q.rankStrength||q.rankValues;
+      if(weights[a]===weights[b])continue;
+      pairs++;right+=+(weights[a]>weights[b]);
     }
     return {quality:pairs?right/pairs:1,order:values};
   }

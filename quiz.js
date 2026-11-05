@@ -177,7 +177,16 @@ function question(){
   const meta=node('div','question-meta');meta.append(node('span','quiz-kicker',(state.index+1)+' / '+state.count+' · '+categoryLabel(q.categoryId)),node('span','difficulty '+(q.difficulty||'hard'),q.difficulty==='expert'?'UZMAN':'ZOR'));top.append(meta);
   const timer=node('span','quiz-timer');timer.id='quiz-timer';top.append(timer);
   const track=node('div','quiz-time-track'),fill=node('i');fill.id='quiz-time-fill';track.append(fill);
-  panel.append(top,track,node('h1',null,q.prompt));
+  panel.append(top,track);
+  if(q.matchCard){
+    const {date,map,score}=q.matchCard;
+    const banner=node('header','lineup-banner');
+    const art=node('img');art.src='assets/maps/'+encodeURIComponent(map.toLowerCase())+'-bg.png';art.alt='';
+    const [ours,theirs]=score.split(/[–-]/).map(Number);
+    const result=node('h1','lineup-score '+(ours===theirs?'draw':ours>theirs?'win':'loss'),score);
+    result.setAttribute('aria-label','Takımımız '+ours+', rakip '+theirs);
+    banner.append(art,node('time','lineup-date',date),result,node('span','lineup-map',map));panel.append(banner);
+  }else panel.append(node('h1',null,q.prompt));
   if(q.image){
     const frame=node('div','question-media '+q.effect),image=node('img');
     image.src=q.image;image.alt='Soru görseli';if(q.position)image.style.objectPosition=q.position;
@@ -199,7 +208,7 @@ function question(){
   }
   const kind=q.kind||'choice';
   if(state.phase==='question'){
-    const bet=button('Bahis · 1,5× / −1×',()=>{if(pending||state.answer)return;betDraft=!betDraft;bet.textContent=betDraft?'Bahis açık · Tam doğru ×1,5, diğer sonuçlar −1×':'Bahis · 1,5× / −1×';bet.setAttribute('aria-pressed',String(betDraft));cue('select');},'quiz-bet');
+    const bet=button('Bahis',()=>{if(pending||state.answer)return;betDraft=!betDraft;bet.setAttribute('aria-pressed',String(betDraft));cue('select');},'quiz-bet');
     bet.setAttribute('aria-pressed',String(state.answer?.bet??betDraft));bet.title='Tam doğruysa normal puanın 1,5 katını kazanırsın. Diğer sonuçlarda normal puan kadar kaybedersin.';panel.append(bet);
   }
   if(kind==='pin'){
@@ -214,17 +223,18 @@ function question(){
     else panel.append(node('p','question-hint','Altın halka tahminin, yeşil nokta doğru bölge.'));
   }else if(kind==='ranking'){
     if(q.killSlots)panel.append(node('strong','kill-strip',q.killSlots.join('   /   ')+'   KILL'));
-    panel.append(node('p','question-hint','Sürükle veya oklarla taşı. 1 = en yüksek. Doğru ikili sıralamalar kadar puan kazanırsın.'));
+    if(q.kdaSlots)panel.append(node('p','lineup-instruction','Oyuncuları soldaki K / D / A değerleriyle eşleştir.'));
+    else panel.append(node('p','question-hint','Sürükle veya oklarla taşı. 1 = en yüksek. Doğru ikili sıralamalar kadar puan kazanırsın.'));
     const list=node('ol','quiz-ordering');
     const paint=()=>{
       list.replaceChildren();
       const order=state.answer?.order||rankDraft;
       order.forEach((item,position)=>{
-        const row=node('li','ordering-row');row.draggable=state.phase==='question'&&!state.answer;row.tabIndex=0;row.dataset.item=item;
+        const row=node('li','ordering-row');if(q.kdaSlots)row.classList.add('kda-row');row.draggable=state.phase==='question'&&!state.answer;row.tabIndex=0;row.dataset.item=item;
         row.addEventListener('keydown',event=>{if(['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();move(position,position+(event.key==='ArrowUp'?-1:1));}});
-        row.append(node('span','ordering-position',q.killSlots?q.killSlots[position]+' K':String(position+1)),node('span','ordering-grip','⠿'),node('strong',null,q.options[item]));
+        row.append(node('span','ordering-position',q.kdaSlots?q.kdaSlots[position].join(' / '):q.killSlots?q.killSlots[position]+' K':String(position+1)),node('span','ordering-grip','⠿'),node('strong',null,q.options[item]));
         if(state.phase==='reveal'){
-          const correctValue=q.values?.[q.correct[position]],right=q.values?.[item]===correctValue;row.classList.add(right?'rank-right':'rank-off');
+          const correctValue=q.values?.[q.correct[position]],right=q.kdaSlots?q.kdaSlots[q.correct.indexOf(item)].join()===q.kdaSlots[position].join():q.values?.[item]===correctValue;row.classList.add(right?'rank-right':'rank-off');
           row.append(node('small',null,number(q.values?.[item]||0)+' '+(q.unit||'')));
         }else{
           const controls=node('span','ordering-controls');
@@ -242,7 +252,7 @@ function question(){
       if(state.answer||state.phase!=='question'||to===from||to<0||to>=rankDraft.length||from<0||from>=rankDraft.length)return;
       const before=new Map([...list.children].map(row=>[row.dataset.item,row.getBoundingClientRect().top]));
       const [item]=rankDraft.splice(from,1);rankDraft.splice(to,0,item);cue('move');paint();tick();
-      if(!reducedMotion())for(const row of list.children){const dy=before.get(row.dataset.item)-row.getBoundingClientRect().top;row.animate([{transform:'translateY('+dy+'px)'},{transform:'translateY(0)'}],{duration:280,easing:'cubic-bezier(.2,.8,.2,1)'});}
+      if(!q.kdaSlots&&!reducedMotion())for(const row of list.children){const dy=before.get(row.dataset.item)-row.getBoundingClientRect().top;row.animate([{transform:'translateY('+dy+'px)'},{transform:'translateY(0)'}],{duration:280,easing:'cubic-bezier(.2,.8,.2,1)'});}
       list.children[to]?.classList.add('just-moved');list.children[to]?.focus({preventScroll:true});
     };
     paint();panel.append(list);
