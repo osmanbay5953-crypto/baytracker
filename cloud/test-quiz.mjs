@@ -6,7 +6,7 @@ for(const topic of ['team','valorant','mixed']){
   const questions=makeQuestions(profiles,topic,20);
   assert.equal(questions.length,20);
   assert.equal(new Set(questions.map(q=>q.id)).size,20);
-  for(const q of questions){assert.equal(new Set(q.options).size,q.options.length);assert(q.kind==='ranking'||q.kind==='multiple'||(q.answer>=0&&q.answer<4));assert(q.explanation);}
+  for(const q of questions){assert.equal(new Set(q.options).size,q.options.length);assert(q.kind==='pin'||q.kind==='ranking'||q.kind==='multiple'||(q.answer>=0&&q.answer<4));assert(q.explanation);}
 }
 for(const question of teamQuestions(profiles))assert(question.options[question.answer]);
 assert.equal(scoreAnswer(true,0),1000);assert.equal(scoreAnswer(true,3000),900);

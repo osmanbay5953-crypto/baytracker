@@ -1,8 +1,9 @@
+import pins from './quiz-pins.json' with {type:'json'};
 import catalog from './quiz-catalog.json' with {type:'json'};
 import settings from '../assets/quiz-settings.json' with {type:'json'};
 
 export const categoryIds=settings.categories.map(c=>c.id);
-const teamCategories=['records','favorites','comps','ranking'];
+const teamCategories=['records','favorites','comps','ranking','lineup'];
 export function normalizeCategories(value,topic='mixed'){
   if(Array.isArray(value))return [...new Set(value.filter(x=>categoryIds.includes(x)))];
   return topic==='team'?teamCategories:topic==='valorant'?categoryIds.filter(x=>!teamCategories.includes(x)):categoryIds;
@@ -98,10 +99,23 @@ export function rankingQuestions(data){
   return questions;
 }
 
+export function matchLineups(data){
+  const players=data?.players||[];
+  if(players.length!==5)return [];
+  const histories=players.map(p=>new Map(p.groups.all.history.map(m=>[m.date,m])));
+  return [...histories[0]].flatMap(([date,match])=>{
+    const rows=shuffle(players.map((p,i)=>({name:p.name,match:histories[i].get(date)})));
+    if(rows.some(r=>!r.match||r.match.map!==match.map||r.match.score!==match.score))return [];
+    const rankValues=rows.map(r=>r.match.kills);
+    if(new Set(rankValues).size<2)return [];
+    const answer=rankValues.map((_,i)=>i).sort((a,b)=>rankValues[b]-rankValues[a]);
+    return [{id:'lineup-'+date,kind:'ranking',category:'team',categoryId:'lineup',difficulty:'expert',prompt:dateLabel(date)+' · '+match.map+' · '+match.score,options:rows.map(r=>r.name),rankValues,answer,killSlots:answer.map(i=>rankValues[i]),unit:'kill',explanation:'Maçın kill tablosu. Eşit killer kendi aralarında değişebilir.'}];
+  });
+}
 export function makeQuestions(data,topic,count,selected,recent=[]){
   const categories=normalizeCategories(selected,topic);
   if(!categories.length)throw Error('En az bir kategori seç.');
-  const candidates=shuffle([...teamQuestions(data),...rankingQuestions(data),...catalog]).filter(q=>categories.includes(q.categoryId));
+  const candidates=shuffle([...teamQuestions(data),...rankingQuestions(data),...matchLineups(data),...pins,...catalog]).filter(q=>categories.includes(q.categoryId));
   // Prefer unseen questions on replay, while allowing a small selected pool to be reused.
   candidates.sort((a,b)=>Number(recent.includes(a.id))-Number(recent.includes(b.id)));
   const families=new Map();
@@ -124,7 +138,7 @@ export function makeQuestions(data,topic,count,selected,recent=[]){
   }
   if(bank.length<count)throw Error('Seçtiğin kategorilerde '+bank.length+' farklı soru var. Soru sayısını azalt veya kategori ekle.');
   return bank.slice(0,count).map(q=>{
-    if(q.kind==='ranking')return q;
+    if(q.kind==='ranking'||q.kind==='pin')return q;
     const order=shuffle(q.options.map((_,i)=>i));
     return {...q,options:order.map(i=>q.options[i]),answer:q.kind==='multiple'?q.answer.map(i=>order.indexOf(i)):order.indexOf(q.answer)};
   });
@@ -132,6 +146,12 @@ export function makeQuestions(data,topic,count,selected,recent=[]){
 
 export function answerQuality(q,answer){
   const kind=q.kind||'choice',n=q.options.length;
+  if(kind==='pin'){
+    const point=answer.point;
+    if(!Array.isArray(point)||point.length!==2||point.some(v=>!Number.isFinite(v)||v<0||v>1))throw Error('Haritada bir nokta seç.');
+    const distance=Math.hypot(point[0]-q.target[0],point[1]-q.target[1]);
+    return {point,quality:Math.max(0,Math.min(1,(.30-distance)/.24))};
+  }
   if(kind==='choice'){
     if(!Number.isInteger(answer.choice)||answer.choice<0||answer.choice>=n)throw Error('Bir şık seç.');
     return {quality:answer.choice===q.answer?1:0,choice:answer.choice};

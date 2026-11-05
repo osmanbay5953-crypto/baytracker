@@ -9,6 +9,7 @@ const node=(tag,className,text)=>{
 const number=value=>new Intl.NumberFormat('tr-TR').format(value);
 const params=new URLSearchParams(location.search);
 let state=null,socket=null,offset=0,pending=false,retryTimer=null;
+let pinDraft=null,betDraft=false;
 let renderedQuestion='',draftKey='',rankDraft=[],multiDraft=new Set(),lastCue='',lastTick='';
 const quizSettings=await fetch('assets/quiz-settings.json').then(r=>r.json());
 const categoryLabel=id=>quizSettings.categories.find(c=>c.id===id)?.label||'VALORANT';
@@ -99,11 +100,11 @@ function home(){
   const setup=node('form','quiz-setup');
   const name=input('Oyuncu adın','name',rememberedName);setup.append(name.wrap);
   const count=input('Soru sayısı','count','15',2);count.field.type='number';count.field.min=5;count.field.max=40;count.field.step=1;const countNote=node('small','count-note','5–40 soru');count.wrap.append(countNote);setup.append(count.wrap);
-  const categoryBox=node('fieldset','quiz-categories'),legend=node('legend',null,'Kategoriler');categoryBox.append(legend);
+  const categoryBox=node('details','quiz-categories'),legend=node('summary',null,'Kategoriler');categoryBox.append(legend);
   const presets=node('div','category-presets');
-  const updateLimit=()=>{const ids=[...categoryBox.querySelectorAll('input:checked')].map(c=>c.value);const limit=Math.min(40,ids.reduce((sum,id)=>sum+(quizSettings.categories.find(c=>c.id===id)?.limit||40),0));count.field.max=String(Math.max(5,limit));count.field.title='Bu seçimde en fazla '+limit+' soru';countNote.textContent=ids.length?'5–'+limit+' soru':'Kategori seç';if(Number(count.field.value)>limit&&limit>=5)count.field.value=String(limit);};
+  const updateLimit=()=>{const ids=[...categoryBox.querySelectorAll('input:checked')].map(c=>c.value);const limit=Math.min(40,ids.reduce((sum,id)=>sum+(quizSettings.categories.find(c=>c.id===id)?.limit||40),0));legend.textContent='Kategoriler · '+ids.length+' seçili';count.field.max=String(Math.max(5,limit));count.field.title='Bu seçimde en fazla '+limit+' soru';countNote.textContent=ids.length?'5–'+limit+' soru':'Kategori seç';if(Number(count.field.value)>limit&&limit>=5)count.field.value=String(limit);};
   const selectCategories=ids=>{for(const field of categoryBox.querySelectorAll('input'))field.checked=ids.includes(field.value);updateLimit();};
-  const teamIds=['records','favorites','comps','ranking'];
+  const teamIds=['records','favorites','comps','ranking','lineup'];
   for(const [label,ids]of [['Tümü',quizSettings.categories.map(c=>c.id)],['Takım',teamIds],['VALORANT',quizSettings.categories.filter(c=>!teamIds.includes(c.id)).map(c=>c.id)]])presets.append(button(label,()=>selectCategories(ids),'category-preset'));
   categoryBox.append(presets);
   const chips=node('div','category-chips');
@@ -165,13 +166,13 @@ async function answer(payload){
   const selected=app.querySelector('[data-choice="'+payload.choice+'"]');
   selected?.classList.add('answer-lock');
   pending=true;tick();errorBox.textContent='';
-  try{setState(await api('/'+state.code+'/answer',{index:state.index,...payload}));}
+  try{setState(await api('/'+state.code+'/answer',{index:state.index,bet:betDraft,...payload}));}
   catch(error){report(error);}
   finally{pending=false;tick();}
 }
 function question(){
   const q=state.question,panel=node('section','quiz-question');
-  const key=state.code+':'+state.index;if(draftKey!==key){draftKey=key;rankDraft=q.options.map((_,i)=>i);multiDraft=new Set();}
+  const key=state.code+':'+state.index;if(draftKey!==key){draftKey=key;pinDraft=null;betDraft=false;rankDraft=q.options.map((_,i)=>i);multiDraft=new Set();}
   const top=node('div','question-top');
   const meta=node('div','question-meta');meta.append(node('span','quiz-kicker',(state.index+1)+' / '+state.count+' · '+categoryLabel(q.categoryId)),node('span','difficulty '+(q.difficulty||'hard'),q.difficulty==='expert'?'UZMAN':'ZOR'));top.append(meta);
   const timer=node('span','quiz-timer');timer.id='quiz-timer';top.append(timer);
@@ -197,7 +198,22 @@ function question(){
     agents.append(node('span','missing-agent','?'));panel.append(agents);
   }
   const kind=q.kind||'choice';
-  if(kind==='ranking'){
+  if(state.phase==='question'){
+    const bet=button('Bahis · 1,5× / −1×',()=>{if(pending||state.answer)return;betDraft=!betDraft;bet.textContent=betDraft?'Bahis açık · Tam doğru ×1,5, diğer sonuçlar −1×':'Bahis · 1,5× / −1×';bet.setAttribute('aria-pressed',String(betDraft));cue('select');},'quiz-bet');
+    bet.setAttribute('aria-pressed',String(state.answer?.bet??betDraft));bet.title='Tam doğruysa normal puanın 1,5 katını kazanırsın. Diğer sonuçlarda normal puan kadar kaybedersin.';panel.append(bet);
+  }
+  if(kind==='pin'){
+    const board=node('div','pin-board');board.tabIndex=0;board.setAttribute('aria-label','Konumu seç. Ok tuşlarıyla da taşıyabilirsin.');
+    const radar=node('img');radar.src=q.radar;radar.alt='Harita planı';board.append(radar);
+    const marker=(point,cls)=>{const dot=node('i','pin-dot '+cls);dot.style.left=point[0]*100+'%';dot.style.top=point[1]*100+'%';board.append(dot);};
+    const paint=()=>{board.querySelectorAll('i').forEach(dot=>dot.remove());const point=state.answer?.point||pinDraft;if(point)marker(point,'guess');if(q.target)marker(q.target,'solution');};
+    board.onclick=e=>{if(state.phase!=='question'||state.answer||pending)return;const rect=board.getBoundingClientRect();pinDraft=[(e.clientX-rect.left)/rect.width,(e.clientY-rect.top)/rect.height].map(v=>Math.max(0,Math.min(1,v)));paint();cue('move');};
+    board.onkeydown=e=>{if(!e.key.startsWith('Arrow')||state.answer||state.phase!=='question')return;e.preventDefault();pinDraft??=[.5,.5];const axis=['ArrowLeft','ArrowRight'].includes(e.key)?0:1;pinDraft[axis]=Math.min(1,Math.max(0,pinDraft[axis]+(['ArrowLeft','ArrowUp'].includes(e.key)?-.02:.02)));paint();};
+    paint();panel.append(board);
+    if(state.phase==='question')panel.append(button('Konumu gönder',()=>pinDraft?answer({point:pinDraft}):report(Error('Önce haritada bir nokta seç.')),'quiz-button quiz-submit'));
+    else panel.append(node('p','question-hint','Altın halka tahminin, yeşil nokta doğru bölge.'));
+  }else if(kind==='ranking'){
+    if(q.killSlots)panel.append(node('strong','kill-strip',q.killSlots.join('   /   ')+'   KILL'));
     panel.append(node('p','question-hint','Sürükle veya oklarla taşı. 1 = en yüksek. Doğru ikili sıralamalar kadar puan kazanırsın.'));
     const list=node('ol','quiz-ordering');
     const paint=()=>{
@@ -206,7 +222,7 @@ function question(){
       order.forEach((item,position)=>{
         const row=node('li','ordering-row');row.draggable=state.phase==='question'&&!state.answer;row.tabIndex=0;row.dataset.item=item;
         row.addEventListener('keydown',event=>{if(['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();move(position,position+(event.key==='ArrowUp'?-1:1));}});
-        row.append(node('span','ordering-position',String(position+1)),node('span','ordering-grip','⠿'),node('strong',null,q.options[item]));
+        row.append(node('span','ordering-position',q.killSlots?q.killSlots[position]+' K':String(position+1)),node('span','ordering-grip','⠿'),node('strong',null,q.options[item]));
         if(state.phase==='reveal'){
           const correctValue=q.values?.[q.correct[position]],right=q.values?.[item]===correctValue;row.classList.add(right?'rank-right':'rank-off');
           row.append(node('small',null,number(q.values?.[item]||0)+' '+(q.unit||'')));
@@ -255,13 +271,13 @@ function question(){
   }
   const feedback=node('div','quiz-feedback');feedback.setAttribute('aria-live','polite');
   if(state.phase==='reveal'){
-    const quality=state.answer?.quality??+(state.answer?.choice===q.correct),correct=quality===1;
-    panel.dataset.outcome=correct?'correct':state.answer?.points?'partial':'wrong';
-    const badge=node('span','feedback-badge',correct?'✓':state.answer?.points?'↗':'−');badge.setAttribute('aria-hidden','true');feedback.append(badge);
-    feedback.append(node('strong',correct?'positive':'',correct?'Tam doğru! +'+number(state.answer.points)+' puan':state.answer?.points?'%'+Math.round(quality*100)+' uyum · +'+number(state.answer.points)+' puan':state.answer?'Bu kez olmadı.':'Süre doldu.'));
+    const quality=state.answer?.quality??+(!!state.answer&&state.answer.choice===q.correct),correct=quality===1;
+    panel.dataset.outcome=correct?'correct':state.answer?.points>0?'partial':'wrong';
+    const badge=node('span','feedback-badge',correct?'✓':state.answer?.points>0?'↗':'−');badge.setAttribute('aria-hidden','true');feedback.append(badge);
+    feedback.append(node('strong',correct?'positive':'',correct?'Tam doğru! +'+number(state.answer.points)+' puan':state.answer?.points<0?'Bahis kaybedildi · '+number(state.answer.points)+' puan':state.answer?.points?'%'+Math.round(quality*100)+' uyum · +'+number(state.answer.points)+' puan':state.answer?'Bu kez olmadı.':'Süre doldu.'));
     feedback.append(node('p',null,q.explanation));
     if(q.source){const source=node('a','quiz-source','Kaynak');source.href=q.source;source.target='_blank';source.rel='noopener noreferrer';feedback.append(source);}
-  }else if(state.answer)feedback.append(node('p',null,'Cevabın kaydedildi. Diğer oyuncuları bekliyoruz.'));
+  }else if(state.answer)feedback.append(node('p',null,'Cevabın kaydedildi. Sonuç bekleniyor.'));
   panel.append(feedback);return panel;
 }
 function results(){
@@ -282,12 +298,12 @@ async function leave(){
 }
 function render(){
   const viewKey=state.code+':'+state.phase+':'+state.index;
-  if(lastCue!==viewKey){lastCue=viewKey;cue(state.phase==='reveal'?(state.answer?.quality===1?'correct':state.answer?.points?'partial':'wrong'):state.phase==='finished'?'finish':'question');}
+  if(lastCue!==viewKey){lastCue=viewKey;cue(state.phase==='reveal'?(state.answer?.quality===1?'correct':state.answer?.points>0?'partial':'wrong'):state.phase==='finished'?'finish':'question');}
   if(state.phase==='question'&&viewKey===renderedQuestion&&app.querySelector('.quiz-question')){
     app.querySelector('.quiz-rankings')?.replaceWith(rankings());
     for(const choice of app.querySelectorAll('[data-choice]'))
       choice.classList.toggle('selected',state.question.kind==='multiple'?(state.answer?.choices||[...multiDraft]).includes(Number(choice.dataset.choice)):Number(choice.dataset.choice)===state.answer?.choice);
-    if(state.answer)app.querySelector('.quiz-feedback').textContent='Cevabın kaydedildi. Diğer oyuncuları bekliyoruz.';
+    if(state.answer)app.querySelector('.quiz-feedback').textContent='Cevabın kaydedildi. Sonuç bekleniyor.';
     tick();return;
   }
   renderedQuestion=viewKey;
@@ -314,6 +330,7 @@ function tick(){
   if(fill)fill.style.width=(state.phase==='question'?Math.min(100,Math.max(0,100*(state.deadline-now)/(state.duration||15000))):0)+'%';
   for(const button of app.querySelectorAll('[data-choice],.quiz-submit'))button.disabled=!active||!!state.answer||pending;
   for(const button of app.querySelectorAll('[data-order-control]'))button.disabled=!active||!!state.answer||pending||button.dataset.edge==='true';
+  const bet=app.querySelector('.quiz-bet');if(bet)bet.disabled=!!state.answer||pending;
   const remaining=Math.ceil((state.deadline-now)/1000),tickKey=state.code+':'+state.index+':'+remaining;
   app.querySelector('.quiz-question')?.classList.toggle('time-critical',active&&!state.answer&&remaining<=5);
   if(active&&!state.answer&&remaining<=3&&lastTick!==tickKey){lastTick=tickKey;cue('tick');}

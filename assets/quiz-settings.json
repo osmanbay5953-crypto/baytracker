@@ -49,6 +49,16 @@
       "id": "arsenal",
       "label": "Silah laboratuvarı",
       "limit": 14
+    },
+    {
+      "id": "lineup",
+      "label": "Skordan beşliyi bul",
+      "limit": 102
+    },
+    {
+      "id": "pin",
+      "label": "Haritada işaretle",
+      "limit": 65
     }
   ],
   "minCount": 5,

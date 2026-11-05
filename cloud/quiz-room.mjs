@@ -29,14 +29,14 @@ export class QuizRoom extends DurableObject {
       code:room.code,mode:room.mode,topic:room.topic,categories:room.categories,count:room.count,duration:room.duration||15000,
       phase:room.phase,index:room.index,startsAt:room.startsAt,deadline:room.deadline,
       serverTime:Date.now(),host:room.host,me:playerId,players,
-      answer:room.answers[playerId]?{choice:room.answers[playerId].choice,order:room.answers[playerId].order,choices:room.answers[playerId].choices,...(reveal?{points:room.answers[playerId].points,elapsed:room.answers[playerId].elapsed,quality:room.answers[playerId].quality}:{})}:null,
+      answer:room.answers[playerId]?{point:room.answers[playerId].point,bet:room.answers[playerId].bet,choice:room.answers[playerId].choice,order:room.answers[playerId].order,choices:room.answers[playerId].choices,...(reveal?{points:room.answers[playerId].points,elapsed:room.answers[playerId].elapsed,quality:room.answers[playerId].quality}:{})}:null,
       question:current&&room.phase!=='lobby'?{
         prompt:current.prompt,options:current.options,category:current.category,categoryId:current.categoryId,
-        kind:current.kind||'choice',difficulty:current.difficulty||'hard',unit:current.unit,
+        kind:current.kind||'choice',difficulty:current.difficulty||'hard',unit:current.unit,radar:current.radar,killSlots:current.killSlots,
         image:current.image?'/api/quiz/rooms/'+room.code+'/media/'+room.index:null,
         audio:current.audio?'/api/quiz/rooms/'+room.code+'/media/'+room.index:null,
         agents:current.agents||null,effect:current.effect,position:current.position,
-        ...(reveal?{correct:current.answer,explanation:current.explanation,values:current.rankValues,source:current.source}: {})
+        ...(reveal?{correct:current.answer,explanation:current.explanation,target:current.target,values:current.rankValues,source:current.source}: {})
       }:null
     };
   }
@@ -126,10 +126,12 @@ export class QuizRoom extends DurableObject {
       const question=this.room.questions[this.room.index];
       let graded;try{graded=answerQuality(question,body);}catch(error){return response({error:error.message},400);}
       const elapsed=now-this.room.startsAt;
-      const points=Math.round(scoreAnswer(true,elapsed,this.room.duration||15000)*graded.quality);
+      const base=scoreAnswer(true,elapsed,this.room.duration||15000);
+      const bet=body.bet===true;
+      const points=bet?(graded.quality===1?Math.round(base*1.5):-base):Math.round(base*graded.quality);
       // Correctness and points are disclosed only when the question is over.
-      this.room.answers[player.id]={...graded,elapsed,points};
-      if(this.room.players.every(p=>this.room.answers[p.id]))this.reveal();
+      this.room.answers[player.id]={...graded,elapsed,points,bet};
+      if(question.categoryId!=='lineup'&&this.room.players.every(p=>this.room.answers[p.id]))this.reveal();
       await this.save();this.broadcast();return response(this.state(player.id));
     }
     if(action==='leave'&&request.method==='POST'){
