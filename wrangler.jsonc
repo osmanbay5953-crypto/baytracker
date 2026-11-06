@@ -28,6 +28,10 @@
       {
         "name": "QUIZ_ROOMS",
         "class_name": "QuizRoom"
+      },
+      {
+        "name": "MATCH_SYNC",
+        "class_name": "MatchSync"
       }
     ]
   },
@@ -37,6 +41,17 @@
       "new_sqlite_classes": [
         "QuizRoom"
       ]
+    },
+    {
+      "tag": "match-sync-v1",
+      "new_sqlite_classes": [
+        "MatchSync"
+      ]
     }
-  ]
+  ],
+  "triggers": {
+    "crons": [
+      "7,22,37,52 * * * *"
+    ]
+  }
 }

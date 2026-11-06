@@ -11,7 +11,8 @@
         document.querySelector('main')?.append(note);
       }
       const time=data.lastSuccess?new Date(data.lastSuccess).toLocaleString('tr-TR',{timeZone:'Europe/Istanbul',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):null;
-      note.textContent=time?'Son başarılı kontrol '+time+(data.ok?' · Otomatik güncelleme':' · Yeniden denenecek'):data.message;
+      const next=data.scheduler?.nextRunAt?new Date(data.scheduler.nextRunAt).toLocaleTimeString('tr-TR',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit'}):null;
+      note.textContent=time?'Son başarılı kontrol '+time+(next?' · Sonraki kontrol '+next:data.ok?' · Otomatik güncelleme':' · Yeniden denenecek'):data.message;
       note.title=data.message||'';
     }catch{}
   }

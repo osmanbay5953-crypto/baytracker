@@ -1,6 +1,10 @@
 export {QuizRoom} from './quiz-room.mjs';
+export {MatchSync} from './match-sync.mjs';
 const json=(value,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store'}});
 export default {
+  async scheduled(event,env,ctx) {
+    ctx.waitUntil(env.MATCH_SYNC.get(env.MATCH_SYNC.idFromName('roster')).fetch('https://internal/ensure'));
+  },
   async fetch(request,env) {
     const url=new URL(request.url);
     if(url.pathname.startsWith('/api/quiz/rooms')){
@@ -21,10 +25,12 @@ export default {
       return env.ASSETS.fetch(request);
     }
     if(url.pathname==='/api/status') {
+      const schedulerResponse=await env.MATCH_SYNC.get(env.MATCH_SYNC.idFromName('roster')).fetch('https://internal/ensure');
+      const scheduler=await schedulerResponse.json();
       const state=await env.DB.prepare('SELECT value FROM sync_state WHERE key=?').bind('status').first();
       const status=state?JSON.parse(state.value):null;
       const count=await env.DB.prepare('SELECT COUNT(*) AS count FROM matches').first();
-      return json({...(status||{ok:false,message:'İlk otomatik kontrol bekleniyor'}),matches:count.count});
+      return json({...(status||{ok:false,message:'İlk otomatik kontrol bekleniyor'}),matches:count.count,scheduler});
     }
     if(url.pathname.startsWith('/api/'))return json({error:'Not found'},404);
     return env.ASSETS.fetch(request);
