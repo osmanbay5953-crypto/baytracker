@@ -30,7 +30,7 @@ export default {
       const state=await env.DB.prepare('SELECT value FROM sync_state WHERE key=?').bind('status').first();
       const status=state?JSON.parse(state.value):null;
       const count=await env.DB.prepare('SELECT COUNT(*) AS count FROM matches').first();
-      return json({...(status||{ok:false,message:'İlk otomatik kontrol bekleniyor'}),matches:count.count,scheduler});
+      return json({...(status||{ok:false,message:'İlk otomatik kontrol bekleniyor'}),matches:count.count,lastRunSource:status?.scheduler||'github',scheduler});
     }
     if(url.pathname.startsWith('/api/'))return json({error:'Not found'},404);
     return env.ASSETS.fetch(request);

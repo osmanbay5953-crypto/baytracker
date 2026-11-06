@@ -1,7 +1,7 @@
 const {roster}=require('./engine.cjs');
 const {summarize,snapshots}=require('./snapshots.cjs');
 
-async function synchronize({query,henrik}) {
+async function synchronize({query,henrik,source='github'}) {
   if(!henrik)throw Error('Match API secret is missing');
   const setState=async value=>query(
     "INSERT INTO sync_state(key,value) VALUES ('status',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -63,7 +63,7 @@ async function synchronize({query,henrik}) {
     const statement="INSERT INTO snapshots(name,payload,updated_at) VALUES ('profiles',?,?),('compositions',?,?) "+
       "ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at";
     await query(statement,[JSON.stringify(compiled.profiles),now,JSON.stringify(compiled.compositions),now]);
-    await setState({ok:true,checkedAt:now,lastSuccess:now,scheduler:'cloudflare',
+    await setState({ok:true,checkedAt:now,lastSuccess:now,scheduler:source,
       lastNewMatch:added?now:previousStatus.lastNewMatch||null,
       added,matches:byId.size,message:added?added+' yeni maç işlendi':'Yeni maç kontrolü tamamlandı'});
     console.log('Published '+byId.size+' unique matches');

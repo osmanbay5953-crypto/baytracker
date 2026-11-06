@@ -24,7 +24,7 @@ export class MatchSync extends DurableObject {
       return result.results;
     };
     try {
-      await synchronization.synchronize({query, henrik: this.env.HENRIK_API_KEY});
+      await synchronization.synchronize({query, henrik: this.env.HENRIK_API_KEY, source: 'cloudflare'});
       await this.ctx.storage.setAlarm(Math.max(Date.now() + 1000, startedAt + INTERVAL));
     } catch (error) {
       console.error('Scheduled match update failed:', error.message);
